@@ -733,13 +733,9 @@ check_kern_pgdir(void)
 	// check pages array
 	n = ROUNDUP(npages*sizeof(struct PageInfo), PGSIZE);
 	for (i = 0; i < n; i += PGSIZE){
-		Dprintf("%x vs %x %d\n", check_va2pa(pgdir, UPAGES + i),PADDR(pages) + i, check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
-		assert(check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
 		// Dprintf("%x vs %x %d\n", check_va2pa(pgdir, UPAGES + i),PADDR(pages) + i, check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
-		// if(!((check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i))){
-		// 	Dprintf("%x vs %x %d\n", check_va2pa(pgdir, UPAGES + i),PADDR(pages) + i, check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
-
-		// }
+		assert(check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
+	
 	}
 	// check phys mem
 	for (i = 0; i < npages * PGSIZE; i += PGSIZE)
