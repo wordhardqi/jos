@@ -8,11 +8,8 @@
 
 #include <kern/pmap.h>
 #include <kern/kclock.h>
-<<<<<<< HEAD
 #include <kern/env.h>
-=======
 #define Dprintf(fmt, ...) cprintf("\33[1;34m %s:%d,%s"  fmt"\33[0m\n", __FILE__, __LINE__,__func__, ##__VA_ARGS__) 
->>>>>>> lab2
 
 // These variables are set by i386_detect_memory()
 size_t npages;			// Amount of physical memory (in pages)
@@ -796,17 +793,12 @@ check_kern_pgdir(void)
 	for (i = 0; i < n; i += PGSIZE){
 		// Dprintf("%x vs %x %d\n", check_va2pa(pgdir, UPAGES + i),PADDR(pages) + i, check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
 		assert(check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
-<<<<<<< HEAD
 
 	// check envs array (new test for lab 3)
 	n = ROUNDUP(NENV*sizeof(struct Env), PGSIZE);
 	for (i = 0; i < n; i += PGSIZE)
 		assert(check_va2pa(pgdir, UENVS + i) == PADDR(envs) + i);
-
-=======
-	
 	}
->>>>>>> lab2
 	// check phys mem
 	for (i = 0; i < npages * PGSIZE; i += PGSIZE)
 		assert(check_va2pa(pgdir, KERNBASE + i) == i);
