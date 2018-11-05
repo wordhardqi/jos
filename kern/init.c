@@ -29,10 +29,14 @@ i386_init(void)
 	cprintf("6828 decimal is %o octal!\n", 6828);
 
 	// Lab 2 memory management initialization functions
+
 	mem_init();
 
 	// Lab 3 user environment initialization functions
+	cprintf("begin env_init\n");
+
 	env_init();
+	cprintf("begin trap_init\n");
 	trap_init();
 
 #if defined(TEST)

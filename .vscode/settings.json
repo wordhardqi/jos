@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "pmap.h": "c",
-        "x86.h": "c"
+        "x86.h": "c",
+        "elf.h": "c"
     }
 }

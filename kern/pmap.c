@@ -169,6 +169,9 @@ mem_init(void)
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
+	envs = (struct Env*)(boot_alloc(NENV*sizeof(struct Env)));
+	memset(envs,0,NENV*sizeof(struct Env));
+	
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -198,8 +201,14 @@ mem_init(void)
 					pages_size,
 					PADDR((void*)(pages)),
 					PTE_U|PTE_P);
-				
-
+	
+	
+	size_t envs_size = ROUNDUP(NENV*sizeof(struct Env), PGSIZE);
+	boot_map_region(kern_pgdir,
+					UENVS,
+					envs_size,
+					PADDR(((void*)(envs))),
+					PTE_W|PTE_P);
 
 
 	//////////////////////////////////////////////////////////////////////
