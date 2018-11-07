@@ -11,7 +11,7 @@
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
 #include <kern/trap.h>
-
+#include <kern/env.h>
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
 
@@ -25,9 +25,12 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
-	{"backtrace","run back trace ",mon_backtrace}
+	{"backtrace","run back trace ",mon_backtrace},
+	{"continue","continue from back trace",mon_continue},
+	{"c","continue from back trace",mon_continue},
+	{"stepi", "single step excution", mon_stepi},
+	{"si", "single step excution", mon_stepi},
 };
-
 /***** Implementations of basic kernel monitor commands *****/
 
 int
@@ -80,8 +83,40 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
   }
   return 0;
 }
+int
+mon_continue(int argc, char**argv, struct Trapframe* tf){
+	if(argc !=1){
+		cprintf("Usage: continue\n");
+		return 0;
+	}
+	if(tf == NULL){
+		cprintf("not caused by breakpoint\n");
+		return 0;
+	}
+	curenv->env_tf = *tf;
+	curenv->env_tf.tf_eflags &=~0x100;
+	env_run(curenv); //this will resorte curenv->env_tf, so set curenv->env_tf above. 
+}
+int
+mon_stepi(int argc, char**argv, struct Trapframe* tf){
+	if(argc !=1){
+		cprintf("Usage: stepi [N]\n");
+		return 0;
+	}
+	if(tf == NULL){
+		cprintf("not caused by breakpoint\n");
+		return 0;
+	}
+		
+	curenv->env_tf = *tf;
+	curenv->env_tf.tf_eflags !=0x100;
+	env_run(curenv);
+	
 
+	
+	return 0; 
 
+}
 /***** Kernel monitor command interpreter *****/
 
 #define WHITESPACE "\t\r\n "
