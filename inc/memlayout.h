@@ -140,7 +140,8 @@
 
 // Physical address of startup code for non-boot CPUs (APs)
 #define MPENTRY_PADDR	0x7000
-
+#define IOMEMBASE 0xfe000000
+#define IOMEM_PADDR IOMEMBASE
 #ifndef __ASSEMBLER__
 
 typedef uint32_t pte_t;
