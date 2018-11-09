@@ -10,9 +10,6 @@
 #include <kern/env.h>
 #include <kern/kclock.h>
 #include <kern/pmap.h>
-#define Dprintf(fmt, ...)                                                      \
-  cprintf("\33[1;34m %s:%d,%s" fmt "\33[0m\n", __FILE__, __LINE__, __func__,   \
-          ##__VA_ARGS__)
 
 // These variables are set by i386_detect_memory()
 size_t npages;                // Amount of physical memory (in pages)
@@ -269,10 +266,9 @@ mem_init_mp(void)
 {
 	// Create a direct mapping at the top of virtual address space starting
 	// at IOMEMBASE for accessing the LAPIC unit using memory-mapped I/O.
-  #define IOMEMBASE 0xfe000000
 	boot_map_region(kern_pgdir, IOMEMBASE, -IOMEMBASE, IOMEM_PADDR, PTE_W);
 
-	// Map per-CPU stacks starting at KSTACKTOP, for up to 'NCPU' CPUs.
+// Map per-CPU stacks starting at KSTACKTOP, for up to 'NCPU' CPUs.
 	//
 	// For CPU i, use the physical memory that 'percpu_kstacks[i]' refers
 	// to as its kernel stack. CPU i's kernel stack grows down from virtual

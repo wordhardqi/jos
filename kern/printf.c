@@ -36,4 +36,3 @@ cprintf(const char *fmt, ...)
 	return cnt;
 }
 
-#define Dprintf(fmt, ...) cprintf("\33[1;34m %s:%d,%s "  fmt"\33[0m\n", __FILE__, __LINE__,__func__, ##__VA_ARGS__) 
