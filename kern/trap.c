@@ -70,9 +70,47 @@ void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
-
+	extern void T_DIVIDE_H();
+	extern void T_DEBUG_H();
+	extern void T_NMI_H();
+	extern void T_BRKPT_H();
+	extern void T_OFLOW_H();
+	extern void T_BOUND_H();
+	extern void T_ILLOP_H();
+	extern void T_DEVICE_H();
+	extern void T_DBLFLT_H();
+	extern void T_TSS_H();
+	extern void T_SEGNP_H();
+	extern void T_STACK_H();
+	extern void T_GPFLT_H();
+	extern void T_PGFLT_H();
+	extern void T_FPERR_H();
+	extern void T_ALIGN_H();
+	extern void T_MCHK_H();
+	extern void T_SIMDERR_H();
+	extern void T_SYSCALL_H();
+	extern void T_DEFAULT_H();
+	SETGATE(idt[T_DIVIDE], 0, GD_KT, T_DIVIDE_H, 0);
+	SETGATE(idt[T_DEBUG], 0, GD_KT, T_DEBUG_H, 0);
+	SETGATE(idt[T_NMI], 0, GD_KT, T_NMI_H, 0);
+	SETGATE(idt[T_BRKPT], 0, GD_KT, T_BRKPT_H, 3);
+	SETGATE(idt[T_OFLOW], 0, GD_KT, T_OFLOW_H, 0);
+	SETGATE(idt[T_BOUND], 0, GD_KT, T_BOUND_H, 0);
+	SETGATE(idt[T_ILLOP], 0, GD_KT, T_ILLOP_H, 0);
+	SETGATE(idt[T_DEVICE], 0, GD_KT, T_DEVICE_H, 0);
+	SETGATE(idt[T_DBLFLT], 0, GD_KT, T_DBLFLT_H, 0);
+	SETGATE(idt[T_TSS], 0, GD_KT, T_TSS_H, 0);
+	SETGATE(idt[T_SEGNP], 0, GD_KT, T_SEGNP_H, 0);
+	SETGATE(idt[T_STACK], 0, GD_KT, T_STACK_H, 0);
+	SETGATE(idt[T_GPFLT], 0, GD_KT, T_GPFLT_H, 0);
+	SETGATE(idt[T_PGFLT], 0, GD_KT, T_PGFLT_H, 0);
+	SETGATE(idt[T_FPERR], 0, GD_KT, T_FPERR_H, 0);
+	SETGATE(idt[T_ALIGN], 0, GD_KT, T_ALIGN_H, 0);
+	SETGATE(idt[T_MCHK], 0, GD_KT, T_MCHK_H, 0);
+	SETGATE(idt[T_SIMDERR], 0, GD_KT, T_SIMDERR_H, 0);
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, T_SYSCALL_H, 3);
+	SETGATE(idt[T_DEFAULT], 0, GD_KT, T_DEFAULT_H, 0);
 	// LAB 3: Your code here.
-
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -164,7 +202,7 @@ print_regs(struct PushRegs *regs)
 	cprintf("  edi  0x%08x\n", regs->reg_edi);
 	cprintf("  esi  0x%08x\n", regs->reg_esi);
 	cprintf("  ebp  0x%08x\n", regs->reg_ebp);
-	cprintf("  oesp 0x%08x\n", regs->reg_oesp);
+	cprintf("  esp 0x%08x\n", regs->reg_oesp);
 	cprintf("  ebx  0x%08x\n", regs->reg_ebx);
 	cprintf("  edx  0x%08x\n", regs->reg_edx);
 	cprintf("  ecx  0x%08x\n", regs->reg_ecx);
@@ -191,7 +229,29 @@ trap_dispatch(struct Trapframe *tf)
 	// LAB 4: Your code here.
 
 	// Unexpected trap: The user process or the kernel has a bug.
+	
+	switch(tf->tf_trapno){
+		case T_PGFLT:
+			page_fault_handler(tf);
+			return;
+		case T_BRKPT:
+			monitor(tf);
+			return; 
+		case T_SYSCALL:
+		//adcbDS
+			tf->tf_regs.reg_eax = syscall(
+				tf->tf_regs.reg_eax,
+				tf->tf_regs.reg_edx,
+				tf->tf_regs.reg_ecx,
+				tf->tf_regs.reg_ebx,
+				tf->tf_regs.reg_edi,
+				tf->tf_regs.reg_esi);
+				return;
+		default:
+			break;
+	}
 	print_trapframe(tf);
+
 	if (tf->tf_cs == GD_KT)
 		panic("unhandled trap in kernel");
 	else {
@@ -268,9 +328,14 @@ page_fault_handler(struct Trapframe *tf)
 	// Read processor's CR2 register to find the faulting address
 	fault_va = rcr2();
 
+
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
+	if((tf->tf_cs & 0x11) ==0){
+		//page fault in kernel mode
+		panic("A Page Fault in Kernel");
+	}
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
