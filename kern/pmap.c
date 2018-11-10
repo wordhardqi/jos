@@ -212,8 +212,8 @@ void mem_init(void) {
   // Your code goes here:
 
   // todo:: shall I readlly put PTE_P here?
-  boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE,
-                  PADDR((void *)(bootstack)), PTE_W);
+  // boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE,
+  //                 PADDR((void *)(bootstack)), PTE_W);
   // boot_map_region(kern_pgdir,
   // 				KSTACKTOP-PTSIZE,
   // 				PTSIZE-KSTKSIZE,
@@ -266,7 +266,7 @@ mem_init_mp(void)
 {
 	// Create a direct mapping at the top of virtual address space starting
 	// at IOMEMBASE for accessing the LAPIC unit using memory-mapped I/O.
-	boot_map_region(kern_pgdir, IOMEMBASE, -IOMEMBASE, IOMEM_PADDR, PTE_W);
+	boot_map_region(kern_pgdir, IOMEMBASE, -IOMEMBASE, IOMEM_PADDR, PTE_P|PTE_W);
 
 // Map per-CPU stacks starting at KSTACKTOP, for up to 'NCPU' CPUs.
 	//
@@ -287,7 +287,8 @@ mem_init_mp(void)
 	int i;
 	for (i = 0 ;i < NCPU ;i ++)
 	{
- 		boot_map_region(kern_pgdir, KSTACKTOP - i * (KSTKSIZE + KSTKGAP) - KSTKSIZE, KSTKSIZE,PADDR(percpu_kstacks[i]), PTE_W | PTE_P);
+ 		boot_map_region(kern_pgdir, KSTACKTOP - i * (KSTKSIZE + KSTKGAP) - KSTKSIZE, 
+     KSTKSIZE,PADDR(percpu_kstacks[i]), PTE_W |PTE_P);
 	}
 }
 // static void mem_init_mp(void) {

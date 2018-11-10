@@ -14,7 +14,6 @@
 #include <kern/sched.h>
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
-#define Dprintf(fmt, ...) cprintf("\33[1;34m %s:%d,%s"  fmt"\33[0m\n", __FILE__, __LINE__,__func__, ##__VA_ARGS__) 
 
 struct Env *envs = NULL;		// All environments
 static struct Env *env_free_list;	// Free environment list
@@ -37,6 +36,15 @@ static struct Env *env_free_list;	// Free environment list
 // definition of gdt specifies the Descriptor Privilege Level (DPL)
 // of that descriptor: 0 for kernel and 3 for user.
 //
+
+
+//  const char * const env_status_name[] = {
+// 	"ENV_FREE",
+// 	"ENV_DYING",
+// 	"ENV_RUNNABLE",
+// 	"ENV_RUNNING",
+// 	"ENV_NOT_RUNNABLE"
+// };
 struct Segdesc gdt[NCPU + 5] =
 {
 	// 0x0 - unused (always faults -- for trapping NULL far pointers)
@@ -271,7 +279,6 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	// commit the allocation
 	env_free_list = e->env_link;
 	*newenv_store = e;
-
 	cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 	return 0;
 }
@@ -495,6 +502,10 @@ env_pop_tf(struct Trapframe *tf)
 {
 	// Record the CPU we are running on for user-space debugging
 	curenv->env_cpunum = cpunum();
+	unlock_kernel();
+
+
+
 
 	asm volatile(
 		"\tmovl %0,%%esp\n"
@@ -529,7 +540,7 @@ env_run(struct Env *e)
 	//	   environment.
 
 	// Hint: This function loads the new environment's state from
-	//	e->env_tf.  Go back through the code you wrote above
+	//	e->env_tf.  Go back throusgh the code you wrote above
 	//	and make sure you have set the relevant parts of
 	//	e->env_tf to sensible values.
 
@@ -541,6 +552,7 @@ env_run(struct Env *e)
 	curenv->env_status = ENV_RUNNING;
 	++curenv->env_runs;
 	lcr3(PADDR(curenv->env_pgdir));
+
 	env_pop_tf(&curenv->env_tf);
 	// panic("env_run not yet implemented");
 }

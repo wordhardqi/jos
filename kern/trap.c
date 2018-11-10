@@ -276,8 +276,10 @@ trap(struct Trapframe *tf)
 
 	// Re-acqurie the big kernel lock if we were halted in
 	// sched_yield()
-	if (xchg(&thiscpu->cpu_status, CPU_STARTED) == CPU_HALTED)
+	if (xchg(&thiscpu->cpu_status, CPU_STARTED) == CPU_HALTED){
 		lock_kernel();
+
+	}
 	// Check that interrupts are disabled.  If this assertion
 	// fails, DO NOT be tempted to fix it by inserting a "cli" in
 	// the interrupt path.
@@ -288,6 +290,9 @@ trap(struct Trapframe *tf)
 		// Acquire the big kernel lock before doing any
 		// serious kernel work.
 		// LAB 4: Your code here.
+
+		lock_kernel();
+
 		assert(curenv);
 
 		// Garbage collect if current enviroment is a zombie
@@ -336,6 +341,7 @@ page_fault_handler(struct Trapframe *tf)
 	// LAB 3: Your code here.
 	if((tf->tf_cs & 0x11) ==0){
 		//page fault in kernel mode
+		// print_trapframe(tf);
 		panic("A Page Fault in Kernel");
 	}
 
