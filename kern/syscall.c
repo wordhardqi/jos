@@ -137,7 +137,7 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 	struct Env * newenv_store;
 	int err = envid2env(envid,&newenv_store,1);
 	if(err <0) {
-		cprintf("%e\n",-err);
+		cprintf("%e\n",err);
 		return err;}
 	newenv_store->env_pgfault_upcall = func;
 	return 0;
@@ -188,10 +188,11 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	 }
 	 ++page->pp_ref;
 	 int ret = page_insert(newenv_store->env_pgdir,page,va,perm);
-	 if(ret){
+	 if(ret<0){
 		 page_free(page);
 		 return ret;
 	 }
+	 memset(page2kva(page),0,PGSIZE);
 	 return 0; 
 
 	panic("sys_page_alloc not implemented");
@@ -227,9 +228,9 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	// LAB 4: Your code here.
 	struct Env *se, *de;
 	int ret = envid2env(srcenvid, &se, 1);
-	if (ret) return ret;	//bad_env
+	if (ret<0) return ret;	//bad_env
 	ret = envid2env(dstenvid, &de, 1);
-	if (ret) return ret; //bad_env		
+	if (ret<0) return ret; //bad_env		
 	if (srcva>=(void*)UTOP || dstva>=(void*)UTOP || 
 		PGOFF(srcva)!=0 || PGOFF(dstva)!=0) {
 		return -E_INVAL;
@@ -347,11 +348,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		case SYS_env_set_pgfault_upcall:
 			return sys_env_set_pgfault_upcall(a1,(void *) a2);
 		case SYS_cputs:
-			user_mem_assert(curenv,(void *) a1,(size_t)a2,PTE_U|PTE_P);
 			sys_cputs((char*)a1,(size_t)a2);
 			return 0;
-		case SYS_cgetc:
-			return sys_cgetc();
 		case SYS_getenvid:
 			return sys_getenvid();
 		case SYS_env_destroy:
@@ -362,14 +360,17 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		case SYS_exofork:
 			return sys_exofork();
 		case SYS_env_set_status:
-				return sys_env_set_status(a1, a2); 
+				return sys_env_set_status(a1, a2);
 		case SYS_page_alloc:
 			return sys_page_alloc(a1, (void*)a2, a3);
 		case SYS_page_map:
 			return sys_page_map(a1, (void*)a2, a3, (void*)a4, a5);
 		case SYS_page_unmap:
-			return sys_page_unmap(a1, (void*)a2);
-		
+			return sys_page_unmap(a1, (void*)a2);	
+		case SYS_cgetc:
+			return sys_cgetc();
+		case SYS_ipc_try_send:
+		case SYS_ipc_recv:	
 	default:
 		return -E_INVAL;
 	}
