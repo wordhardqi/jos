@@ -136,7 +136,9 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 {
 	struct Env * newenv_store;
 	int err = envid2env(envid,&newenv_store,1);
-	if(err <0) return err;
+	if(err <0) {
+		cprintf("%e\n",-err);
+		return err;}
 	newenv_store->env_pgfault_upcall = func;
 	return 0;
 	panic("sys_env_set_pgfault_upcall not implemented");
@@ -342,6 +344,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// panic("syscall not implemented");
 
 	switch (syscallno) {
+		case SYS_env_set_pgfault_upcall:
+			return sys_env_set_pgfault_upcall(a1,(void *) a2);
 		case SYS_cputs:
 			user_mem_assert(curenv,(void *) a1,(size_t)a2,PTE_U|PTE_P);
 			sys_cputs((char*)a1,(size_t)a2);
@@ -365,6 +369,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_page_map(a1, (void*)a2, a3, (void*)a4, a5);
 		case SYS_page_unmap:
 			return sys_page_unmap(a1, (void*)a2);
+		
 	default:
 		return -E_INVAL;
 	}
