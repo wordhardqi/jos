@@ -14,6 +14,7 @@ libmain(int argc, char **argv)
 	// set thisenv to point at our Env structure in envs[].
 	// LAB 3: Your code here.
 	thisenv =(struct Env*)envs + ENVX(sys_getenvid());
+	// envid2env(sys_getenvid(),&thisenv,PTE_W|PTE_U|PTE_P);
 	// save the name of the program so that panic() can use it
 	if (argc > 0)
 		binaryname = argv[0];

@@ -204,7 +204,7 @@ print_regs(struct PushRegs *regs)
 	cprintf("  edi  0x%08x\n", regs->reg_edi);
 	cprintf("  esi  0x%08x\n", regs->reg_esi);
 	cprintf("  ebp  0x%08x\n", regs->reg_ebp);
-	cprintf("  esp 0x%08x\n", regs->reg_oesp);
+	cprintf("  oesp 0x%08x\n", regs->reg_oesp);
 	cprintf("  ebx  0x%08x\n", regs->reg_ebx);
 	cprintf("  edx  0x%08x\n", regs->reg_edx);
 	cprintf("  ecx  0x%08x\n", regs->reg_ecx);
@@ -339,9 +339,9 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
-	if((tf->tf_cs & 0x11) ==0){
+	if((tf->tf_cs & 3) ==0){
 		//page fault in kernel mode
-		// print_trapframe(tf);
+		print_trapframe(tf);
 		panic("A Page Fault in Kernel");
 	}
 
@@ -387,11 +387,9 @@ page_fault_handler(struct Trapframe *tf)
 		if((tf->tf_esp >= (UXSTACKTOP-PGSIZE))&& 
 			(tf->tf_esp < (UXSTACKTOP)) ){
 			utf_addr = tf->tf_esp - 4 - sizeof(struct UTrapframe);
-			Dprintf("%08x",utf_addr);
 		}else{
 			
 			utf_addr = UXSTACKTOP - sizeof(struct UTrapframe);
-			Dprintf("%08x first",utf_addr);
 		}
 		user_mem_assert(curenv, (void*)utf_addr,sizeof(struct UTrapframe), PTE_U | PTE_W);
 		utf = (struct UTrapframe*) utf_addr;

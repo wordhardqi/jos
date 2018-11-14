@@ -506,7 +506,6 @@ env_pop_tf(struct Trapframe *tf)
 
 
 
-	Dprintf();
 	asm volatile(
 		"\tmovl %0,%%esp\n"
 		"\tpopal\n"
@@ -545,7 +544,6 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
-	Dprintf();
 	if(curenv !=NULL && curenv->env_status ==ENV_RUNNING){
 		curenv->env_status = ENV_RUNNABLE;
 	}
@@ -555,7 +553,6 @@ env_run(struct Env *e)
 	lcr3(PADDR(curenv->env_pgdir));
 
 	env_pop_tf(&curenv->env_tf);
-	Dprintf();
 	// panic("env_run not yet implemented");
 }
 
