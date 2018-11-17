@@ -31,9 +31,9 @@ sched_yield(void)
 
 	do{ 
 		if(envs[pick].env_status == ENV_RUNNABLE){
-			// if(curenv !=NULL){
-			// 	Dprintf("Cpu %d",curenv->env_cpunum);
-			// }
+			if(curenv !=NULL){
+				// Dprintf("Cpu %d",curenv->env_cpunum);
+			}
 			// Dprintf("pick env %d : %d",pick,envs[pick].env_status);
 			env_run(&envs[pick]);	
 		}
