@@ -27,7 +27,8 @@ pgfault(struct UTrapframe *utf)
 	// LAB 4: Your code here.
 	if( (err & FEC_WR)==0 ||
 		(uvpd[PDX(addr)]& PTE_P) ==0 ||
-		(uvpt[PGNUM(addr)]&PTE_COW)==0){
+		(uvpt[PGNUM(addr)]&PTE_COW)==0
+		||(uvpt[PGNUM(addr)] & PTE_COW)==0){
 			panic("invalid parameter");
 		}
 
@@ -43,7 +44,7 @@ pgfault(struct UTrapframe *utf)
 		panic("sys_page_alloc failed");
 	}
 	void* va = (void*)ROUNDDOWN(addr,PGSIZE);
-	memmove((void*)PFTEMP,va,PGSIZE);
+	memcpy((void*)PFTEMP,va,PGSIZE);
 	r = sys_page_map(0,(void*)PFTEMP,0,va,PTE_U|PTE_W|PTE_P);
 	if (r<0){
 		panic("sys_page_map failed");
@@ -71,9 +72,6 @@ duppage(envid_t envid, unsigned pn)
 	void * addr = (void *)(pn * PGSIZE);
 	if((uint32_t)addr >= UTOP){
 		panic("duppage over UTOP");
-	}
-	if((uvpt[pn] & PTE_P) == 0){
-		panic("page is not presented");
 	}
 
 	
@@ -112,31 +110,28 @@ duppage(envid_t envid, unsigned pn)
 //   Neither user exception stack should ever be marked copy-on-write,
 //   so you must allocate a new page for the child's user exception stack.
 //
+
 envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	int child_id;
+	envid_t child_id;
 	set_pgfault_handler(pgfault);
 	child_id = sys_exofork(); // must be inlined;
-	if(child_id <0){
-		panic("fork failed");
-	}else if(child_id==0){
+	if(child_id==0){
 		thisenv = &envs[ENVX(sys_getenvid())];
 		return 0;
 	}
+	if(child_id <0){
+		panic("fork failed");
+	} 
+	
 	uintptr_t addr;
-// 	* UTOP,UENVS ------>  +------------------------------+ 0xeec00000
-//  * UXSTACKTOP -/       |     User Exception Stack     | RW/RW  PGSIZE
-//  *                     +------------------------------+ 0xeebff000
-//  *                     |       Empty Memory (*)       | --/--  PGSIZE
-//  *    USTACKTOP  --->  +------------------------------+ 0xeebfe000
-//  *                     |      Normal User Stack       | RW/RW  PGSIZE
-//  *                     +------------------------------+ 0xeebfd000
-	for(addr = UTEXT; addr < USTACKTOP; addr ++){
-		if((uvpd[PDX(addr)]&PTE_P) &&
-			(uvpt[PGNUM(addr)&PTE_P])&&
-			(uvpt[PGNUM(addr)]&PTE_U)){
+
+	for(addr = 0; addr < USTACKTOP; addr +=PGSIZE){
+	
+		if((uvpd[PDX(addr)] & PTE_P) &&  (uvpt[PGNUM(addr)] & PTE_P)
+			&& (uvpt[PGNUM(addr)] & PTE_U)) {
 				duppage(child_id,PGNUM(addr));
 			}
 	}

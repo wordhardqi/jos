@@ -34,14 +34,13 @@ sched_yield(void)
 			// if(curenv !=NULL){
 			// 	Dprintf("Cpu %d",curenv->env_cpunum);
 			// }
-			// Dprintf("pick env %d : %d",pick,envs[pick].env_status);
+			Dprintf("pick env %d : %d",pick,envs[pick].env_status);
 			env_run(&envs[pick]);	
 		}
 		pick =(pick + 1 )%NENV;
 
 	}while (env_id !=pick);
 	if (curenv && curenv->env_status == ENV_RUNNING){
-			Dprintf();
 		env_run(curenv);
 
 	}
