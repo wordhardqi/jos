@@ -266,7 +266,7 @@ mem_init_mp(void)
 {
 	// Create a direct mapping at the top of virtual address space starting
 	// at IOMEMBASE for accessing the LAPIC unit using memory-mapped I/O.
-	boot_map_region(kern_pgdir, IOMEMBASE, -IOMEMBASE, IOMEM_PADDR, PTE_P|PTE_W);
+	boot_map_region( kern_pgdir, IOMEMBASE, -IOMEMBASE, IOMEM_PADDR, PTE_P|PTE_W);
 
 // Map per-CPU stacks starting at KSTACKTOP, for up to 'NCPU' CPUs.
 	//
@@ -287,8 +287,11 @@ mem_init_mp(void)
 	int i;
 	for (i = 0 ;i < NCPU ;i ++)
 	{
- 		boot_map_region(kern_pgdir, KSTACKTOP - i * (KSTKSIZE + KSTKGAP) - KSTKSIZE, 
-     KSTKSIZE,PADDR(percpu_kstacks[i]), PTE_W |PTE_P);
+ 		boot_map_region(kern_pgdir, 
+     KSTACKTOP - i * (KSTKSIZE + KSTKGAP) - KSTKSIZE, 
+     KSTKSIZE,
+     PADDR(percpu_kstacks[i]), 
+     PTE_W );
 	}
 }
 // static void mem_init_mp(void) {
@@ -356,13 +359,7 @@ void page_init(void) {
   // free pages!
   page_free_list = NULL;
   size_t i=0;
-  //   pages[i].pp_ref = 1;
-  //   pages[i].pp_link = NULL;
-  // for (i = 1; i < MPENTRY_PADDR/PGSIZE; i++) {
-	// 	pages[i].pp_ref = 0;
-	// 	pages[i].pp_link = page_free_list;
-	// 	page_free_list = &pages[i];
-	// }
+
   for (; i < npages; i++) {
     if (i == 0 ||
         (&pages[i] >= pa2page(PADDR((void *)(KERNBASE + IOPHYSMEM))) &&
@@ -467,20 +464,7 @@ void page_decref(struct PageInfo *pp) {
 // solely on page translation.
 
 pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create) {
-  // Fill this function in
-  // 	static physaddr_t
-  // check_va2pa(pde_t *pgdir, uintptr_t va)
-  // {
-  // 	pte_t *p;
 
-  // 	pgdir = &pgdir[PDX(va)];
-  // 	if (!(*pgdir & PTE_P))
-  // 		return ~0;
-  // 	p = (pte_t*) KADDR(PTE_ADDR(*pgdir));
-  // 	if (!(p[PTX(va)] & PTE_P))
-  // 		return ~0;
-  // 	return PTE_ADDR(p[PTX(va)]);
-  // }
   size_t pdx = PDX(va), ptx = PTX(va);
   if (!(pgdir[pdx] & PTE_P)) {
     if (create) {
@@ -640,7 +624,7 @@ void *mmio_map_region(physaddr_t pa, size_t size) {
   physaddr_t up = ROUNDUP(pa+size, PGSIZE);
 	pa = ROUNDDOWN(pa, PGSIZE);
   size_t aligned_size =up - pa;
-  int perm = PTE_PCD | PTE_PWT | PTE_W |PTE_P;
+  int perm = PTE_PCD | PTE_PWT | PTE_W ;
   if(aligned_size + base >=MMIOLIM){
     panic("reservation overflow MMIOLIM");
   }

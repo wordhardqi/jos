@@ -90,6 +90,7 @@ trap_init(void)
 	extern void T_SIMDERR_H();
 	extern void T_SYSCALL_H();
 	extern void T_DEFAULT_H();
+	
 	SETGATE(idt[T_DIVIDE], 0, GD_KT, T_DIVIDE_H, 0);
 	SETGATE(idt[T_DEBUG], 0, GD_KT, T_DEBUG_H, 0);
 	SETGATE(idt[T_NMI], 0, GD_KT, T_NMI_H, 0);
@@ -110,6 +111,40 @@ trap_init(void)
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, T_SIMDERR_H, 0);
 	SETGATE(idt[T_SYSCALL], 0, GD_KT, T_SYSCALL_H, 3);
 	SETGATE(idt[T_DEFAULT], 0, GD_KT, T_DEFAULT_H, 0);
+
+	extern void irq0();
+	extern void irq1();
+	extern void irq2();
+	extern void irq3();
+	extern void irq4();
+	extern void irq5();
+	extern void irq6();
+	extern void irq7();
+	extern void irq8();
+	extern void irq9();
+	extern void irq10();
+	extern void irq11();
+	extern void irq12();
+	extern void irq13();
+	extern void irq14();
+	extern void irq15();
+
+	SETGATE(idt[IRQ_OFFSET+0], 0, GD_KT, irq0, 0);
+	SETGATE(idt[IRQ_OFFSET+1], 0, GD_KT, irq1, 0);
+	SETGATE(idt[IRQ_OFFSET+2], 0, GD_KT, irq2, 0);
+	SETGATE(idt[IRQ_OFFSET+3], 0, GD_KT, irq3, 0);
+	SETGATE(idt[IRQ_OFFSET+4], 0, GD_KT, irq4, 0);
+	SETGATE(idt[IRQ_OFFSET+5], 0, GD_KT, irq5, 0);
+	SETGATE(idt[IRQ_OFFSET+6], 0, GD_KT, irq6, 0);
+	SETGATE(idt[IRQ_OFFSET+7], 0, GD_KT, irq7, 0);
+	SETGATE(idt[IRQ_OFFSET+8], 0, GD_KT, irq8, 0);
+	SETGATE(idt[IRQ_OFFSET+9], 0, GD_KT, irq9, 0);
+	SETGATE(idt[IRQ_OFFSET+10], 0, GD_KT, irq10, 0);
+	SETGATE(idt[IRQ_OFFSET+11], 0, GD_KT, irq11, 0);
+	SETGATE(idt[IRQ_OFFSET+12], 0, GD_KT, irq12, 0);
+	SETGATE(idt[IRQ_OFFSET+13], 0, GD_KT, irq13, 0);
+	SETGATE(idt[IRQ_OFFSET+14], 0, GD_KT, irq14, 0);
+	SETGATE(idt[IRQ_OFFSET+15], 0, GD_KT, irq15, 0);
 	// LAB 3: Your code here.
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -148,7 +183,7 @@ trap_init_percpu(void)
 	// when we trap to the kernel.
 	struct Taskstate* ts = &thiscpu->cpu_ts;
 	int cpuid = thiscpu->cpu_id;
-	ts->ts_esp0 = KSTACKTOP;
+	ts->ts_esp0 = KSTACKTOP - cpuid*(KSTKSIZE + KSTKGAP);
 	ts->ts_ss0 = GD_KD;
 	ts->ts_iomb = sizeof(struct Taskstate);
 
@@ -249,6 +284,12 @@ trap_dispatch(struct Trapframe *tf)
 				tf->tf_regs.reg_edi,
 				tf->tf_regs.reg_esi);
 				return;
+		case (IRQ_TIMER + IRQ_OFFSET):
+			lapic_eoi();
+			sched_yield();
+			return; 
+
+
 		default:
 			break;
 	}
@@ -342,6 +383,7 @@ page_fault_handler(struct Trapframe *tf)
 	if((tf->tf_cs & 3) ==0){
 		//page fault in kernel mode
 		print_trapframe(tf);
+		mon_backtrace(1,NULL,tf);
 		panic("A Page Fault in Kernel");
 	}
 
