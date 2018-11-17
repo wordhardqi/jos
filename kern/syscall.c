@@ -139,7 +139,6 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 	if(err <0) {
 		cprintf("%e\n",err);
 		return err;}
-	Dprintf("%08x", func);
 	newenv_store->env_pgfault_upcall = func;
 	return 0;
 	panic("sys_env_set_pgfault_upcall not implemented");
@@ -349,7 +348,6 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		case SYS_env_set_pgfault_upcall:
 			return sys_env_set_pgfault_upcall(a1,(void *) a2);
 		case SYS_cputs:
-			user_mem_assert(curenv,(void*)a1,a2,PTE_U|PTE_P);
 			sys_cputs((char*)a1,(size_t)a2);
 			return 0;
 		case SYS_getenvid:

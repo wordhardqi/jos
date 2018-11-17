@@ -21,19 +21,42 @@ void (*_pgfault_handler)(struct UTrapframe *utf);
 // at UXSTACKTOP), and tell the kernel to call the assembly-language
 // _pgfault_upcall routine when a page fault occurs.
 //
+
 void
 set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 {
-	int r;
+	// int r;
+
 	if (_pgfault_handler == 0) {
-		if((r = sys_page_alloc(0,(void*)(UXSTACKTOP-PGSIZE),PTE_U|PTE_P|PTE_W)) < 0)
-		{
-			panic("set_pgfault_handler: %e\n", r);
-		}
-		sys_env_set_pgfault_upcall(0, _pgfault_upcall);
+		// First time through!
+		// LAB 4: Your code here.
+		if (sys_page_alloc(0, (void*)(UXSTACKTOP-PGSIZE), PTE_W|PTE_U|PTE_P) < 0) 
+			panic("set_pgfault_handler:sys_page_alloc failed");;
 	}
-	
+	// Save handler pointer for assembly to call.
 	_pgfault_handler = handler;
-
-
+	if (sys_env_set_pgfault_upcall(0, _pgfault_upcall) < 0)
+		panic("set_pgfault_handler:sys_env_set_pgfault_upcall failed");
 }
+// void 
+// set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
+// {
+
+// 	if (_pgfault_handler == 0) {
+// 		// First time through!
+// 		// LAB 4: Your code here.
+// 		if((  sys_page_alloc(0,(void*)(UXSTACKTOP-PGSIZE), PTE_W|PTE_P|PTE_U))<0){
+// 			panic("failed to alloc exception stack with err ");
+// 		}
+		
+// 	}
+
+// 	// Save handler pointer for assembly to call.
+// 	_pgfault_handler = handler;
+// 	// int err  = sys_env_set_pgfault_upcall(0,_pgfault_handler);
+// 	// if(err <0){
+// 	// 	panic("failed at sys_env_set_pgfault_upcall with err %e", err);
+// 	// }
+// 		if (sys_env_set_pgfault_upcall(0, _pgfault_upcall) < 0)
+// 		panic("set_pgfault_handler:sys_env_set_pgfault_upcall failed");
+// }
