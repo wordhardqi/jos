@@ -11,8 +11,42 @@ void sched_halt(void);
 void
 sched_yield(void)
 {
-	struct Env *idle;
 
+	// mon_backtrace(1,NULL,NULL);
+	struct Env *idle;
+	uint32_t env_id ;
+	int pick = 0;
+
+	if(curenv !=NULL){
+		env_id =  ENVX(curenv->env_id);
+			pick =(env_id +1)%NENV;
+
+
+	}else{
+		env_id = 0;
+			pick =(env_id )%NENV;
+
+	}
+
+
+	do{ 
+		if(envs[pick].env_status == ENV_RUNNABLE){
+			if(curenv !=NULL){
+				// Dprintf("Cpu %d",curenv->env_cpunum);
+			}
+			// Dprintf("pick env %d : %d",pick,envs[pick].env_status);
+			env_run(&envs[pick]);	
+		}
+		pick =(pick + 1 )%NENV;
+
+	}while (env_id !=pick);
+	if (curenv && curenv->env_status == ENV_RUNNING){
+		env_run(curenv);
+
+	}
+	
+
+	
 	// Implement simple round-robin scheduling.
 	//
 	// Search through 'envs' for an ENV_RUNNABLE environment in
@@ -56,7 +90,9 @@ sched_halt(void)
 		while (1)
 			monitor(NULL);
 	}
-
+	if(curenv !=NULL){
+		Dprintf("hating ", ENVX(curenv->env_id));
+	}
 	// Mark that no environment is running on this CPU
 	curenv = NULL;
 	lcr3(PADDR(kern_pgdir));
@@ -76,7 +112,7 @@ sched_halt(void)
 		"pushl $0\n"
 		"pushl $0\n"
 		// Uncomment the following line after completing exercise 13
-		//"sti\n"
+		"sti\n"
 		"1:\n"
 		"hlt\n"
 		"jmp 1b\n"

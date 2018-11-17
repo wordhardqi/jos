@@ -22,6 +22,7 @@ vcprintf(const char *fmt, va_list ap)
 	return cnt;
 }
 
+
 int
 cprintf(const char *fmt, ...)
 {
