@@ -26,8 +26,8 @@ pgfault(struct UTrapframe *utf)
 
 	// LAB 4: Your code here.
 	if( (err & FEC_WR)==0 ||
-		uvpd[PDX(addr)]& PTE_P ==0 ||
-		uvpt[PGNUM(addr)]&PTE_COW==0){
+		(uvpd[PDX(addr)]& PTE_P) ==0 ||
+		(uvpt[PGNUM(addr)]&PTE_COW)==0){
 			panic("invalid parameter");
 		}
 
@@ -38,13 +38,13 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 
 	// LAB 4: Your code here.
-	r = sys_page_alloc(0,(void*)PFTEMP,PTE_P|PTE_W|PTE_P);
+	r = sys_page_alloc(0,(void*)PFTEMP,PTE_U|PTE_W|PTE_P);
 	if(r <0){
 		panic("sys_page_alloc failed");
 	}
 	void* va = (void*)ROUNDDOWN(addr,PGSIZE);
 	memmove((void*)PFTEMP,va,PGSIZE);
-	r = sys_page_map(0,(void*)PFTEMP,0,va,PTE_P|PTE_W|PTE_P);
+	r = sys_page_map(0,(void*)PFTEMP,0,va,PTE_U|PTE_W|PTE_P);
 	if (r<0){
 		panic("sys_page_map failed");
 	}
@@ -72,7 +72,7 @@ duppage(envid_t envid, unsigned pn)
 	if((uint32_t)addr >= UTOP){
 		panic("duppage over UTOP");
 	}
-	if(uvpt[pn] & PTE_P == 0){
+	if((uvpt[pn] & PTE_P) == 0){
 		panic("page is not presented");
 	}
 
@@ -135,7 +135,7 @@ fork(void)
 //  *                     +------------------------------+ 0xeebfd000
 	for(addr = UTEXT; addr < USTACKTOP; addr ++){
 		if((uvpd[PDX(addr)]&PTE_P) &&
-			(uvpt[PGNUM[addr]&PTE_P])&&
+			(uvpt[PGNUM(addr)&PTE_P])&&
 			(uvpt[PGNUM(addr)]&PTE_U)){
 				duppage(child_id,PGNUM(addr));
 			}

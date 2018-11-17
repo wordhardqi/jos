@@ -348,6 +348,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		case SYS_env_set_pgfault_upcall:
 			return sys_env_set_pgfault_upcall(a1,(void *) a2);
 		case SYS_cputs:
+		    user_mem_assert(curenv,(void*)a1,a2,PTE_W);
 			sys_cputs((char*)a1,(size_t)a2);
 			return 0;
 		case SYS_getenvid:

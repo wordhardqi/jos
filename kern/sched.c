@@ -19,11 +19,14 @@ sched_yield(void)
 
 	if(curenv !=NULL){
 		env_id =  ENVX(curenv->env_id);
+			pick =(env_id +1)%NENV;
+
 
 	}else{
 		env_id = 0;
+			pick =(env_id )%NENV;
+
 	}
-	pick =(env_id )%NENV;
 
 
 	do{ 
