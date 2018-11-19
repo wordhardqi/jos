@@ -94,7 +94,7 @@ flush_block(void *addr)
 		panic("in flush_block, ide_write: %e", r);
 
 	}
-	if ((r = sys_page_map(0, va, 0, va,  PTE_SYSCALL)) < 0)
+	if ((r = sys_page_map(0, va, 0, va, uvpt[PGNUM(addr)] & PTE_SYSCALL)) < 0)
 		panic("in flush_block, sys_page_map: %e", r);
 	// LAB 5: Your code here.
 	// panic("flush_block not implemented");

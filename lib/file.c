@@ -2,7 +2,7 @@
 #include <inc/string.h>
 #include <inc/lib.h>
 
-#define debug 0
+#define debug 1
 
 union Fsipc fsipcbuf __attribute__((aligned(PGSIZE)));
 
@@ -15,6 +15,7 @@ union Fsipc fsipcbuf __attribute__((aligned(PGSIZE)));
 static int
 fsipc(unsigned type, void *dstva)
 {
+	// Dprintf();
 	static envid_t fsenv;
 	if (fsenv == 0)
 		fsenv = ipc_find_env(ENV_TYPE_FS);
@@ -25,6 +26,7 @@ fsipc(unsigned type, void *dstva)
 		cprintf("[%08x] fsipc %d %08x\n", thisenv->env_id, type, *(uint32_t *)&fsipcbuf);
 
 	ipc_send(fsenv, type, &fsipcbuf, PTE_P | PTE_W | PTE_U);
+	// Dprintf();
 	return ipc_recv(NULL, dstva, NULL);
 }
 
@@ -115,12 +117,14 @@ devfile_read(struct Fd *fd, void *buf, size_t n)
 	// filling fsipcbuf.read with the request arguments.  The
 	// bytes read will be written back to fsipcbuf by the file
 	// system server.
+	Dprintf();
 	int r;
 
 	fsipcbuf.read.req_fileid = fd->fd_file.id;
 	fsipcbuf.read.req_n = n;
 	if ((r = fsipc(FSREQ_READ, NULL)) < 0)
 		return r;
+	Dprintf();
 	assert(r <= n);
 	assert(r <= PGSIZE);
 	memmove(buf, fsipcbuf.readRet.ret_buf, r);
@@ -141,7 +145,27 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
 	// remember that write is always allowed to write *fewer*
 	// bytes than requested.
 	// LAB 5: Your code here
-	panic("devfile_write not implemented");
+	// int r;
+	// fsipcbuf.write.req_fileid = fd->fd_file.id;
+	// const void* start_buf = buf;
+	// while(n>0){
+	// 	fsipcbuf.write.req_n = MIN(n,sizeof(fsipcbuf.write.req_buf));
+	// 	memmove(fsipcbuf.write.req_buf,start_buf,fsipcbuf.write.req_n);
+	// 	if((r=fsipc(FSREQ_WRITE,NULL))<0){
+	// 		return r;
+	// 	}
+	// 	n-=r;
+	// 	start_buf+=r;
+	// }
+	// return (start_buf - buf);
+	int r;
+
+	n = MIN(n, sizeof(fsipcbuf.write.req_buf));
+	fsipcbuf.write.req_fileid = fd->fd_file.id;
+	fsipcbuf.write.req_n = n;
+	memmove(fsipcbuf.write.req_buf, buf, n);
+return fsipc(FSREQ_WRITE, NULL);
+	// panic("devfile_write not implemented");
 }
 
 static int

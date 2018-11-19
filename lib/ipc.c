@@ -24,17 +24,25 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 {
 	// LAB 4: Your code here.
 	// panic("ipc_recv not implemented");
-	if (from_env_store) *from_env_store = 0;
-	if (perm_store) *perm_store = 0;
+	// Dprintf();
+	
 	if (!pg) pg = (void*) -1;
+	// Dprintf("pg= %08x",pg);
 	int ret = sys_ipc_recv(pg);
-	if(ret<0) return ret;
+	if(ret<0) {
+		if (from_env_store) *from_env_store = 0;
+		if (perm_store) *perm_store = 0;
+		return ret;
+	}
+	// Dprintf("ret = %08x",ret);
 	if (from_env_store) *from_env_store = thisenv->env_ipc_from;
 	if (perm_store) *perm_store = thisenv->env_ipc_perm;
+		// Dprintf("thisenv->env_ipc_value = %08x",thisenv->env_ipc_value);
+
 	return thisenv->env_ipc_value;
 
 
-	return 0;
+	
 }
 
 // Send 'val' (and 'pg' with 'perm', if 'pg' is nonnull) to 'toenv'.
@@ -54,7 +62,7 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 	}
 	int ret;
 	while((ret = sys_ipc_try_send(to_env,val,pg,perm))){
-		if(ret != -E_IPC_NOT_RECV) panic("not E_IPC_NOT_RECV");
+		if(ret != -E_IPC_NOT_RECV) panic("not E_IPC_NOT_RECV, %e",ret);
 		sys_yield();
 	}
 	// panic("ipc_send not implemented");
