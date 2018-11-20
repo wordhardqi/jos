@@ -291,6 +291,12 @@ trap_dispatch(struct Trapframe *tf)
 			lapic_eoi();
 			sched_yield();
 			return; 
+		case (IRQ_KBD + IRQ_OFFSET):
+			kbd_intr();
+			return;
+		case (IRQ_SERIAL + IRQ_OFFSET):
+			serial_intr();
+			return;
 
 
 		default:

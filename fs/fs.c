@@ -191,7 +191,7 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 		   return -E_INVAL;
 	   }
 	
-	uint32_t* pdiskbno=NULL;
+	uint32_t* pdiskbno;
 	int r = file_block_walk(f,filebno,&pdiskbno,1);
 	if(r<0) return r; 
 	//the corresponding block is not allocated;

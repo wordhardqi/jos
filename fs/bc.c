@@ -85,11 +85,13 @@ flush_block(void *addr)
 
 	if (addr < (void*)DISKMAP || addr >= (void*)(DISKMAP + DISKSIZE))
 		panic("flush_block of bad va %08x", addr);
-	void* va = ROUNDDOWN(addr,PGSIZE);
-	if(!va_is_mapped(va) || !va_is_dirty(va)){
+	if(!va_is_mapped(addr) || !va_is_dirty(addr)){
 		return;
 	}
+	void* va = ROUNDDOWN(addr,PGSIZE);
+
 	int r;
+	
 	if((r=ide_write(blockno*BLKSECTS,va,BLKSECTS))<0){
 		panic("in flush_block, ide_write: %e", r);
 

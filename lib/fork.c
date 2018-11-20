@@ -74,8 +74,9 @@ duppage(envid_t envid, unsigned pn)
 		panic("duppage over UTOP");
 	}
 
-	
-	if((uvpt[pn]&PTE_W)||(uvpt[pn]&PTE_COW)){
+	if(uvpt[pn]&PTE_SHARE){
+		sys_page_map(0,addr,envid,addr, uvpt[pn]&PTE_SYSCALL);
+	}else if((uvpt[pn]&PTE_W)||(uvpt[pn]&PTE_COW)){
 		if(sys_page_map(0,addr,envid,addr,PTE_COW|PTE_U|PTE_P)){
 			panic("failed to map to target env");
 		}
