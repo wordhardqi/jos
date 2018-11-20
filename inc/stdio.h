@@ -20,6 +20,8 @@ int	vsnprintf(char *str, int size, const char *fmt, va_list);
 
 // lib/printf.c
 int	cprintf(const char *fmt, ...);
+#define Dprintf(fmt, ...) cprintf("\33[1;34m %s:%d,%s "  fmt"\33[0m\n", __FILE__, __LINE__,__func__, ##__VA_ARGS__) 
+
 int	vcprintf(const char *fmt, va_list);
 
 // lib/fprintf.c

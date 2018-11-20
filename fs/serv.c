@@ -9,7 +9,7 @@
 #include "fs.h"
 
 
-#define debug 0
+#define debug 1
 
 // The file system server maintains three structures
 // for each open file.
@@ -88,11 +88,13 @@ int
 openfile_lookup(envid_t envid, uint32_t fileid, struct OpenFile **po)
 {
 	struct OpenFile *o;
-
+	// Dprintf();
 	o = &opentab[fileid % MAXOPEN];
+	// Dprintf("o->o_fd %08x",o->o_fd);
 	if (pageref(o->o_fd) <= 1 || o->o_fileid != fileid)
 		return -E_INVAL;
 	*po = o;
+	// Dprintf();
 	return 0;
 }
 
@@ -171,6 +173,7 @@ try_open:
 	// Share the FD page with the caller by setting *pg_store,
 	// store its permission in *perm_store
 	*pg_store = o->o_fd;
+	Dprintf("o->fd %08x", o->o_fd);
 	*perm_store = PTE_P|PTE_U|PTE_W|PTE_SHARE;
 
 	return 0;
@@ -212,9 +215,25 @@ serve_read(envid_t envid, union Fsipc *ipc)
 
 	if (debug)
 		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
+	int r;
+	struct OpenFile* openfile;
+	Dprintf();
+	if((r=openfile_lookup(envid, req->req_fileid,&openfile))<0){
+		return r;
+	}
+	Dprintf();
+	off_t* fd_offset = &openfile->o_fd->fd_offset;
+	Dprintf();
+	if((r=file_read(openfile->o_file,ret->ret_buf,MIN(req->req_n,PGSIZE),*fd_offset))<0){
+		return r;
+	}
+	*fd_offset +=r;
+	return r; 
+	
+
 
 	// Lab 5: Your code here:
-	return 0;
+	
 }
 
 
@@ -227,7 +246,18 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 {
 	if (debug)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
+	int r;
+	struct OpenFile* openfile;
+	if((r=openfile_lookup(envid, req->req_fileid,&openfile))<0){
+		return r;
+	}
+	off_t* fd_offset = &openfile->o_fd->fd_offset;
 
+	if((r=file_write(openfile->o_file,req->req_buf,(req->req_n),*fd_offset))<0){
+		return r;
+	}
+	*fd_offset +=r;
+	return r;
 	// LAB 5: Your code here.
 	panic("serve_write not implemented");
 }

@@ -25,6 +25,12 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
+	if( (err & FEC_WR)==0 ||
+		(uvpd[PDX(addr)]& PTE_P) ==0 ||
+		(uvpt[PGNUM(addr)]&PTE_COW)==0
+		||(uvpt[PGNUM(addr)] & PTE_COW)==0){
+			panic("invalid parameter");
+		}
 
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
@@ -33,8 +39,17 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 
 	// LAB 4: Your code here.
-
-	panic("pgfault not implemented");
+	r = sys_page_alloc(0,(void*)PFTEMP,PTE_U|PTE_W|PTE_P);
+	if(r <0){
+		panic("sys_page_alloc failed");
+	}
+	void* va = (void*)ROUNDDOWN(addr,PGSIZE);
+	memcpy((void*)PFTEMP,va,PGSIZE);
+	r = sys_page_map(0,(void*)PFTEMP,0,va,PTE_U|PTE_W|PTE_P);
+	if (r<0){
+		panic("sys_page_map failed");
+	}
+	// panic("pgfault not implemented");
 }
 
 //
@@ -44,7 +59,7 @@ pgfault(struct UTrapframe *utf)
 // marked copy-on-write as well.  (Exercise: Why do we need to mark ours
 // copy-on-write again if it was already copy-on-write at the beginning of
 // this function?)
-//
+
 // Returns: 0 on success, < 0 on error.
 // It is also OK to panic on error.
 //
@@ -54,8 +69,30 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
-	panic("duppage not implemented");
+	void * addr = (void *)(pn * PGSIZE);
+	if((uint32_t)addr >= UTOP){
+		panic("duppage over UTOP");
+	}
+
+	if(uvpt[pn]&PTE_SHARE){
+		sys_page_map(0,addr,envid,addr, uvpt[pn]&PTE_SYSCALL);
+	}else if((uvpt[pn]&PTE_W)||(uvpt[pn]&PTE_COW)){
+		if(sys_page_map(0,addr,envid,addr,PTE_COW|PTE_U|PTE_P)){
+			panic("failed to map to target env");
+		}
+		if(sys_page_map(0,addr,0,addr,PTE_COW|PTE_U|PTE_P)){
+			panic("failed to mark original env");
+		}
+	
+
+	} else{
+		sys_page_map(0,addr, envid,addr, PTE_U|PTE_P);
+	}
 	return 0;
+
+
+	// panic("duppage not implemented");
+	// return 0;
 }
 
 //
@@ -74,11 +111,40 @@ duppage(envid_t envid, unsigned pn)
 //   Neither user exception stack should ever be marked copy-on-write,
 //   so you must allocate a new page for the child's user exception stack.
 //
+
 envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	panic("fork not implemented");
+	envid_t child_id;
+	set_pgfault_handler(pgfault);
+	child_id = sys_exofork(); // must be inlined;
+	if(child_id==0){
+		thisenv = &envs[ENVX(sys_getenvid())];
+		return 0;
+	}
+	if(child_id <0){
+		panic("fork failed");
+	} 
+	
+	uintptr_t addr;
+
+	for(addr = 0; addr < USTACKTOP; addr +=PGSIZE){
+	
+		if((uvpd[PDX(addr)] & PTE_P) &&  (uvpt[PGNUM(addr)] & PTE_P)
+			&& (uvpt[PGNUM(addr)] & PTE_U)) {
+				duppage(child_id,PGNUM(addr));
+			}
+	}
+	if(sys_page_alloc(child_id,(void*)(UXSTACKTOP-PGSIZE),PTE_P|PTE_U|PTE_W)){
+		panic("failed to alloc exception stack to child process");
+	}
+	extern void _pgfault_upcall();
+	sys_env_set_pgfault_upcall(child_id,_pgfault_upcall);
+	if(sys_env_set_status(child_id,ENV_RUNNABLE)){
+		panic("sys_env_set_status failed");
+	}
+	return child_id; 
 }
 
 // Challenge!
