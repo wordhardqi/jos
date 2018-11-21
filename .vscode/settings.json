@@ -6,6 +6,9 @@
         "monitor.h": "c",
         "env.h": "c",
         "spinlock.h": "c",
-        "kclock.h": "c"
+        "kclock.h": "c",
+        "trap.h": "c",
+        "console.h": "c",
+        "e1000.h": "c"
     }
 }

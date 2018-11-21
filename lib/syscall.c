@@ -121,3 +121,7 @@ sys_time_msec(void)
 {
 	return (unsigned int) syscall(SYS_time_msec, 0, 0, 0, 0, 0, 0);
 }
+uint32_t 
+sys_pkt_tx(uint32_t addr, int len ){
+	return (uint32_t) syscall(SYS_pkt_tx,0,addr,len,0,0,0);
+}

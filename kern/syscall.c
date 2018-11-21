@@ -12,6 +12,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -341,6 +342,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	// LAB 4: Your code here.
 		int r;
 	struct Env *e;
+	// Dprintf("envid %08x",envid);
 	int ret = envid2env(envid, &e, 0);
 	if (ret) return ret;//bad env
 	if (!e->env_ipc_recving) return -E_IPC_NOT_RECV;
@@ -403,9 +405,12 @@ static int
 sys_time_msec(void)
 {
 	// LAB 6: Your code here.
-	panic("sys_time_msec not implemented");
+	return time_msec();
 }
-
+static int
+sys_pkt_tx(void* addr, size_t len ){
+	return e1000_transmit(addr,len);
+}
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -448,6 +453,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_ipc_recv((void*)a1);
 		case SYS_env_set_trapframe:
 			return sys_env_set_trapframe((envid_t)a1,(struct Trapframe*)a2);
+		case SYS_time_msec:
+			return sys_time_msec();
+		case SYS_pkt_tx:
+			return sys_pkt_tx((void*)a1,a2);
 	default:
 		return -E_INVAL;
 	}

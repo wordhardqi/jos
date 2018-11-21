@@ -173,7 +173,7 @@ try_open:
 	// Share the FD page with the caller by setting *pg_store,
 	// store its permission in *perm_store
 	*pg_store = o->o_fd;
-	Dprintf("o->fd %08x", o->o_fd);
+	// Dprintf("o->fd %08x", o->o_fd);
 	*perm_store = PTE_P|PTE_U|PTE_W|PTE_SHARE;
 
 	return 0;
@@ -217,13 +217,13 @@ serve_read(envid_t envid, union Fsipc *ipc)
 		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 	int r;
 	struct OpenFile* openfile;
-	Dprintf();
+	// Dprintf();
 	if((r=openfile_lookup(envid, req->req_fileid,&openfile))<0){
 		return r;
 	}
-	Dprintf();
+	// Dprintf();
 	off_t* fd_offset = &openfile->o_fd->fd_offset;
-	Dprintf();
+	// Dprintf();
 	if((r=file_read(openfile->o_file,ret->ret_buf,MIN(req->req_n,PGSIZE),*fd_offset))<0){
 		return r;
 	}

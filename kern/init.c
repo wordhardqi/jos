@@ -16,6 +16,7 @@
 #include <kern/spinlock.h>
 #include <kern/time.h>
 #include <kern/pci.h>
+#include <kern/e1000.h>
 
 static void boot_aps(void);
 
@@ -60,10 +61,13 @@ i386_init(void)
 
 	// Start fs.
 	ENV_CREATE(fs_fs, ENV_TYPE_FS);
+	uint32_t a[]={0,0,0,0,0};
+	e1000_transmit((uint32_t*)a,sizeof(a)/sizeof(uint32_t));
+	e1000_transmit((uint32_t*)a,sizeof(a)/sizeof(uint32_t));
 
 #if !defined(TEST_NO_NS)
 	// Start ns.
-	ENV_CREATE(net_ns, ENV_TYPE_NS);
+	// ENV_CREATE(net_ns, ENV_TYPE_NS);
 #endif
 
 #if defined(TEST)
@@ -71,6 +75,7 @@ i386_init(void)
 	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
 	// Touch all you want.
+	
 	ENV_CREATE(user_icode, ENV_TYPE_USER);
 #endif // TEST*
 
@@ -78,7 +83,7 @@ i386_init(void)
 	kbd_intr();
 
 	// Schedule and run the first user environment!
-			Dprintf("call yield");
+		Dprintf("call yield");
 
 	sched_yield();
 }

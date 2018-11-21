@@ -296,9 +296,13 @@ trap_dispatch(struct Trapframe *tf)
 				return;
 		case (IRQ_TIMER + IRQ_OFFSET):
 			lapic_eoi();
+			if(cpunum()==0){
+				time_tick();
+			}
 			sched_yield();
 			return; 
 		case (IRQ_KBD + IRQ_OFFSET):
+		// TODO: is it necessary to lapic_eoi
 			kbd_intr();
 			return;
 		case (IRQ_SERIAL + IRQ_OFFSET):

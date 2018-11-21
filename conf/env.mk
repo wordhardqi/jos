@@ -18,4 +18,4 @@ GCCPREFIX='i386-elf-'
 # If the makefile cannot find your QEMU binary, uncomment the
 # following line and set it to the full path to QEMU.
 #
-QEMU=qemu-system-i386
+QEMU=/home/renming/qemu/bin/qemu-system-i386
