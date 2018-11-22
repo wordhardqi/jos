@@ -7,15 +7,16 @@
 // struct tx_desc_t tx_descs[N_TX_DESCS];
 
 volatile uint32_t* e1000;
-struct tx_desc_t* tx_descs;
+// volatile struct tx_desc_t* tx_descs;
+volatile struct tx_desc_t tx_descs[N_TX_DESCS] ;
 #define E1000_SET_REG(offset,val) *((uint32_t*)(E1000_REG(e1000,offset))) = val
 static physaddr_t tx_buffer[N_TX_DESCS];
 static size_t current = 0;
-struct e1000_reg_tdlen* tdlen;
-struct e1000_reg_tdh* tdh;
-struct e1000_reg_tdt* tdt;
-struct e1000_reg_tctl* tctl;
-struct e1000_reg_tipg* tipg;
+volatile struct e1000_reg_tdlen* tdlen;
+volatile struct e1000_reg_tdh* tdh;
+volatile struct e1000_reg_tdt* tdt;
+volatile struct e1000_reg_tctl* tctl;
+volatile struct e1000_reg_tipg* tipg;
 
 // LAB 6: Your driver code here
 //initialize the card to transmit
@@ -39,7 +40,7 @@ static int tx_init(){
 
     }
 tdlen = ( struct e1000_reg_tdlen*)(E1000_REG(e1000,E1000_TDLEN));
-    tdlen->len = sizeof(struct tx_desc_t) * N_TX_DESCS;
+    tdlen->len =N_TX_DESCS;
     Dprintf("tdlen= %d\n",tdlen->len);
     tdlen->zero = 0;
     tdlen->rsv = 0;
@@ -79,6 +80,8 @@ int e1000_transmit(uint32_t* ta, size_t len){
 
     uint32_t next = (current + 1) % N_TX_DESCS;
     tdt->tdt = next;
+    Dprintf("tdt->tdt %d  tdh->tdh %d",tdt->tdt,tdh->tdh);
+    Dprintf("tx_descs[current] %08x",tx_descs[current].status);
     while(!(tx_descs[current].status&0xf)){
         //wait
     }
