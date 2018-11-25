@@ -62,9 +62,14 @@ i386_init(void)
 	// Start fs.
 	ENV_CREATE(fs_fs, ENV_TYPE_FS);
 	uint32_t a[]={0,0,0,0,0};
-	e1000_transmit((uint32_t*)a,sizeof(a)/sizeof(uint32_t));
-	e1000_transmit((uint32_t*)a,sizeof(a)/sizeof(uint32_t));
-
+	// for(int j=0;j<4;j++){
+	// e1000_transmit((uint32_t*)a,sizeof(a)/sizeof(uint32_t));
+	// e1000_transmit((uint32_t*)a,sizeof(a)/sizeof(uint32_t));
+	// e1000_transmit((uint32_t*)a,sizeof(a)/sizeof(uint32_t));
+	// e1000_transmit((uint32_t*)a,sizeof(a)/sizeof(uint32_t));
+	// e1000_transmit((uint32_t*)a,sizeof(a)/sizeof(uint32_t));
+	// e1000_transmit((uint32_t*)a,sizeof(a)/sizeof(uint32_t));
+	// }
 #if !defined(TEST_NO_NS)
 	// Start ns.
 	// ENV_CREATE(net_ns, ENV_TYPE_NS);

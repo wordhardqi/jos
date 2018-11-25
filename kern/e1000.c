@@ -38,6 +38,7 @@ static int tx_init(){
         tx_buffer[i] = page2pa(pp);
         tx_descs[i].addr = 0;
         tx_descs[i].cmd = 0;
+        // tx_descs[i].status_reg.DD = 1;
 
     }
 tdlen = ( struct e1000_reg_tdlen*)(E1000_REG(e1000,E1000_TDLEN));
@@ -70,26 +71,26 @@ tipg = ( struct e1000_reg_tipg*)(E1000_REG(e1000,E1000_TIPG));
 
 }
 int e1000_transmit(uint32_t* ta, size_t len){
+    // while( !(tx_descs[current].status&0xf) ){
+    //     //wait;
+    // }
     tx_descs[current].addr = tx_buffer[current];
     tx_descs[current].length = len;
-    // struct e1000_reg_cmd* cmd =(struct e1000_reg_cmd*)&tx_descs[current].cmd;
-    // cmd->EOP = 1;
-    // cmd->RPS = 1;
-    tx_descs[current].cmd_reg.RPS = 1;
-     tx_descs[current].cmd_reg.IDE = 1;
 
-    // tx_descs[current].cmd_reg.RS = 1;
+    tx_descs[current].cmd_reg.RS = 1;
+    tx_descs[current].cmd_reg.IDE = 1;
     tx_descs[current].cmd_reg.EOP = 1;
-    Dprintf("tx_descs[current].cmd_reg = %b",tx_descs[current].cmd_reg);
+    // Dprintf("tx_descs[current].cmd_reg = %b",tx_descs[current].cmd_reg);
     memcpy(KADDR(tx_buffer[current]),ta,len);
 
     uint32_t next = (current + 1) % N_TX_DESCS;
     tdt->tdt = next;
-    Dprintf("tdt->tdt %d  tdh->tdh %d",tdt->tdt,tdh->tdh);
+    // Dprintf("tdt->tdt %d  tdh->tdh %d",tdt->tdt,tdh->tdh);
     Dprintf("tx_descs[current] %08x",tx_descs[current].status);
     while(!(tx_descs[current].status&0xf)){
         //wait
     }
+   
     current = next;
     return 0;
 }

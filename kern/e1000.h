@@ -42,8 +42,15 @@ struct e1000_reg_cmd{
 	unsigned RS : 1;
 	unsigned RPS: 1;
 	unsigned DEXT:1;
-	unsigned VLE : 1 ;
+	unsigned VLE : 1;
 	unsigned IDE : 1;
+}__attribute__((packed));
+struct e1000_reg_status{
+	unsigned DD:1;
+	unsigned EC:1;
+	unsigned RC:1;
+	unsigned RSV:1;
+	unsigned RSV2:4;
 }__attribute__((packed));
 struct e1000_reg_tdlen{
     unsigned int zero :7;
@@ -87,8 +94,11 @@ struct tx_desc_t
 	uint8_t cmd;
 	struct e1000_reg_cmd cmd_reg;
 	};
-	
+	union{
 	uint8_t status;
+	struct e1000_reg_status status_reg;
+	};
+
 	uint8_t css;
 	uint16_t special;
 } __attribute__((packed));
