@@ -44,7 +44,7 @@ struct e1000_reg_cmd{
 	unsigned DEXT:1;
 	unsigned VLE : 1 ;
 	unsigned IDE : 1;
-};
+}__attribute__((packed));
 struct e1000_reg_tdlen{
     unsigned int zero :7;
     unsigned int len : 13;

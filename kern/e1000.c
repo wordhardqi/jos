@@ -8,7 +8,8 @@
 
 volatile uint32_t* e1000;
 // volatile struct tx_desc_t* tx_descs;
-volatile struct tx_desc_t tx_descs[N_TX_DESCS] ;
+__attribute__((__aligned__(16)))
+volatile struct tx_desc_t tx_descs[N_TX_DESCS]  ;
 #define E1000_SET_REG(offset,val) *((uint32_t*)(E1000_REG(e1000,offset))) = val
 static physaddr_t tx_buffer[N_TX_DESCS];
 static size_t current = 0;
@@ -22,11 +23,11 @@ volatile struct e1000_reg_tipg* tipg;
 //initialize the card to transmit
 static int tx_init(){
     //alloc list of tx_desc_t
-    struct PageInfo* pp = page_alloc(ALLOC_ZERO);
-    if(!pp) panic("failed to alloc tx_descs");
+    // struct PageInfo* pp = page_alloc(ALLOC_ZERO);
+    // if(!pp) panic("failed to alloc tx_descs");
     
-    tx_descs = (struct tx_desc_t*)page2kva(pp);
-    E1000_SET_REG(E1000_TDBAL,page2pa(pp));
+    // tx_descs = (struct tx_desc_t*)page2kva(pp);
+    E1000_SET_REG(E1000_TDBAL,PADDR((void*)tx_descs));
     E1000_SET_REG(E1000_TDBAH,0);
 
     //alloc memory for packets
@@ -75,7 +76,11 @@ int e1000_transmit(uint32_t* ta, size_t len){
     // cmd->EOP = 1;
     // cmd->RPS = 1;
     tx_descs[current].cmd_reg.RPS = 1;
+     tx_descs[current].cmd_reg.IDE = 1;
+
+    // tx_descs[current].cmd_reg.RS = 1;
     tx_descs[current].cmd_reg.EOP = 1;
+    Dprintf("tx_descs[current].cmd_reg = %b",tx_descs[current].cmd_reg);
     memcpy(KADDR(tx_buffer[current]),ta,len);
 
     uint32_t next = (current + 1) % N_TX_DESCS;
