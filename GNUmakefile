@@ -343,10 +343,10 @@ which-ports:
 	@echo "Local port $(PORT80) forwards to JOS port 80 (web server)"
 
 nc-80:
-	nc localhost $(PORT80)
+	ncat localhost $(PORT80)
 
 nc-7:
-	nc localhost $(PORT7)
+	ncat localhost $(PORT7)
 
 telnet-80:
 	telnet localhost $(PORT80)

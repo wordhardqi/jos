@@ -1,223 +1,187 @@
 #include <kern/e1000.h>
-#include <kern/pmap.h>
-#include <inc/string.h>
-#include <inc/assert.h>
-#include <inc/error.h>
-// __attribute__((__aligned__(16)))
-// struct tx_desc_t tx_descs[N_TX_DESCS];
-
-
-#define E1000_SET_REG(offset,val) *((uint32_t*)(E1000_REG(e1000,offset))) = val
-volatile uint32_t* e1000;
-// volatile struct tx_desc_t* tx_descs;
-__attribute__((__aligned__(16)))
-volatile struct tx_desc_t* tx_descs ;
-static physaddr_t tx_buffer[N_TX_DESCS];
-static size_t tx_current = 0;
-volatile struct e1000_reg_tdlen* tdlen;
-volatile struct e1000_reg_tdh* tdh;
-volatile struct e1000_reg_tdt* tdt;
-volatile struct e1000_reg_tctl* tctl;
-volatile struct e1000_reg_tipg* tipg;
-
-
-volatile struct rx_desc_t* rx_descs;
-static size_t rx_current = 0;
-
-static physaddr_t rx_buffer[N_RX_DESCS];
-volatile struct e1000_reg_rdlen* rdlen;
-volatile struct e1000_reg_rdh* rdh;
-volatile struct e1000_reg_rdt* rdt;
-volatile struct e1000_reg_rctl* rctl;
-
-volatile struct e1000_reg_ral* ral;
-volatile struct e1000_reg_rah* rah;
-
-void set_receive_address(){
-    char hdaddr[6] = {0x52, 0x54, 0x00, 0x12, 0x34, 0x56};
-    
-    int i;
-    uint32_t low = 0,high=0;
-   
-    
-    for (i = 0; i < 4; i++) {
-	    low |= hdaddr[i] << (8 * i);
-	}
-    for (i = 4; i < 6; i++) {
-		high |= hdaddr[i] << (8 * (i-4));
-    }
-    ral =( struct e1000_reg_ral* ) E1000_REG(e1000,E1000_RA);
-    rah =(volatile struct e1000_reg_rah*) (&ral[1]);
-    ral->ral = low;
-    rah->rah = 0x5634 | E1000_RAH_AV;
-   
-    Dprintf("ral = %08x", ral->ral);
-    Dprintf("rah->rah= %08x", rah->rah);
-    Dprintf("rah = %08x", *(uint32_t*)(rah));
-  
-
-}
-
-static int rx_init(){
-    assert(sizeof(struct rx_desc_t) * N_RX_DESCS < PGSIZE);
-    set_receive_address();
-    rx_current = 0;
-
-    struct PageInfo* pp = page_alloc(ALLOC_ZERO);
-    if(!pp) panic("failed to alloc tx_descs");
-    rx_descs = (struct rx_desc_t*)page2kva(pp);
-    E1000_SET_REG(E1000_RDBAL,page2pa(pp));
-    E1000_SET_REG(E1000_RDBAH,0);
-    int i=0;
-    for(i=0;i<N_RX_DESCS;++i){
-        struct PageInfo* pp = page_alloc(ALLOC_ZERO);
-        if(!pp) panic("failed to alloc mem for packets");
-        rx_buffer[i] = page2pa(pp);
-        rx_descs[i].addr = page2pa(pp);
-
-    }
-
-    
-    rdlen = ( struct e1000_reg_rdlen*)(E1000_REG(e1000,E1000_RDLEN));
-    rdlen->len = N_RX_DESCS;
-    rdlen->rsv = 0;
-    rdlen->zero = 0;
-
-    rdh =(struct e1000_reg_rdh*)(E1000_REG(e1000,E1000_RDH));
-    rdh->rdh = 0;
-    rdh->rsv = 0;
-
-    rdt =(struct e1000_reg_rdt*)(E1000_REG(e1000,E1000_RDT));
-    rdt->rdt = (N_RX_DESCS -1);
-    // rdt->rsv = 0;
- 
-
-
-
-
-    rctl = (struct e1000_reg_rctl*)(E1000_REG(e1000,E1000_RCTL));
-    rctl->bam = 1;
-    rctl->secrc = 1;
-    rctl->en = 1;
-
-
-
-
-    return 0;
-
-
-
-}
-// int e1000_receive(void* addr,size_t size){
-
-// }
 
 // LAB 6: Your driver code here
-//initialize the card to transmit
-static int tx_init(){
-    //alloc list of tx_desc_t
-    struct PageInfo* pp = page_alloc(ALLOC_ZERO);
-    if(!pp) panic("failed to alloc tx_descs");
-    
-    tx_descs = (struct tx_desc_t*)page2kva(pp);
-    E1000_SET_REG(E1000_TDBAL,PADDR((void*)tx_descs));
-    E1000_SET_REG(E1000_TDBAH,0);
+#include <inc/string.h>
+#include <kern/pci.h>
+#include <kern/pmap.h>
 
-    //alloc memory for packets
-    int i=0;
-    for(i=0;i<N_TX_DESCS;++i){
-        struct PageInfo* pp = page_alloc(ALLOC_ZERO);
-        if(!pp) panic("failed to alloc mem for packets");
-        tx_buffer[i] = page2pa(pp);
-        tx_descs[i].addr = 0;
-        tx_descs[i].cmd = 0;
-        // tx_descs[i].status_reg.DD = 1;
+volatile uint32_t *reg;
+struct tx_desc *txdscs;
+struct rx_desc *rxdscs;
+struct e1000_tdh *tdh;
+struct e1000_tdt *tdt;
+struct e1000_rdt *rdt;
+uintptr_t buf_addrs[NTXDESCS];
+void *recv_buf_addrs[NRXDESCS];
 
-    }
+#define TX_CMD_EOP 1<<0 // End Of Packet
+#define TX_CMD_RS 1<<3 // Report Status
+#define TX_CMD_RPS 1<<4 // Report Packet Sent
+#define TX_CMD_IDE 1<<7 // Interrupt Delay Enable
+#define TX_STATUS_DD 0x01 // Descriptor Done
+#define RX_STATUS_DD 0x01 // Descriptor Done
+#define RX_STATUS_EOP 1<<1 // End of Packet
 
+static void
+transmit_init() {
+	struct e1000_tctl *tctl;
+	struct e1000_tipg *tipg;
+	struct e1000_tdl *tdl;
+	uint32_t *tdbal;
+	uint32_t *tdbah;
 
-tdlen = ( struct e1000_reg_tdlen*)(E1000_REG(e1000,E1000_TDLEN));
-    tdlen->len =N_TX_DESCS;
-    Dprintf("tdlen= %d\n",tdlen->len);
-    tdlen->zero = 0;
-    tdlen->rsv = 0;
-    
-tdh =(struct e1000_reg_tdh*)(E1000_REG(e1000,E1000_TDH));
-    tdh->rsv =0;
-    tdh->tdh = 0;
-    
-tdt = ( struct e1000_reg_tdt*)(E1000_REG(e1000,E1000_TDT));
-    tdt->rsv =0;
-    tdt->tdt = 0;
+	struct PageInfo *pp = page_alloc(ALLOC_ZERO);
+	txdscs = page2kva(pp);
+	tdbal = (uint32_t *)E1000REG(reg, E1000_TDBAL);
+	tdbah = (uint32_t *)E1000REG(reg, E1000_TDBAH);
+	*tdbal = page2pa(pp);
+	*tdbah = 0;
+	int i;
+	for (i = 0; i < NTXDESCS; i++) {
+		struct PageInfo *bufpg = page_alloc(ALLOC_ZERO);
+		buf_addrs[i] = page2pa(bufpg);
+		txdscs[i].addr = 0;
+		txdscs[i].cmd = 0;
+	}
 
-    tx_current = 0;
+	tdl = (struct e1000_tdl *)E1000REG(reg, E1000_TDL);
+	// uint16_t tdl_len = sizeof(struct tx_desc) * NTXDESCS;
+	// assert(tdl_len % 128 == 0);
+	// tdl->len = tdl_len;
+	tdl->len = NTXDESCS; // NOT a byte size !!
 
-tctl = ( struct e1000_reg_tctl*)(E1000_REG(e1000,E1000_TCTL));
-    tctl->en = 1;
-    tctl->psp = 1;
-    tctl->ct = 0x10; 
-    tctl->cold = 0x40;
+	tdh = (struct e1000_tdh *)E1000REG(reg, E1000_TDH);
+	tdh->tdh = 0;
 
-tipg = ( struct e1000_reg_tipg*)(E1000_REG(e1000,E1000_TIPG));
-    tipg->ipgt = 10;
-    tipg->ipgr1= 4;
-    tipg->ipgr2 = 6;
+	tdt = (struct e1000_tdt *)E1000REG(reg, E1000_TDT);
+	tdt->tdt = 0;
 
+	tctl = (struct e1000_tctl *)E1000REG(reg, E1000_TCTL);
+	tctl->en = 1;
+	tctl->psp = 1;
+	tctl->ct = 0x10;
+	tctl->cold = 0x40;
 
-    return 0;
-
+	// See the table 13-77 of section 13.4.34 on Developer's Manual.
+	tipg = (struct e1000_tipg *)E1000REG(reg, E1000_TIPG);
+	tipg->ipgt = 10;
+	tipg->ipgr1 = 4;
+	tipg->ipgr2 = 6;
 }
-int e1000_transmit(uint32_t* ta, size_t len){
-    // while( !(tx_descs[tx_current].status&0xf) ){
-    //     //wait;
-    // }
-    tx_descs[tx_current].addr = tx_buffer[tx_current];
-    tx_descs[tx_current].length = len;
 
-    tx_descs[tx_current].cmd_reg.RS = 1;
-    tx_descs[tx_current].cmd_reg.IDE = 1;
-    tx_descs[tx_current].cmd_reg.EOP = 1;
-    // Dprintf("tx_descs[tx_current].cmd_reg = %b",tx_descs[tx_current].cmd_reg);
-    memcpy(KADDR(tx_buffer[tx_current]),ta,len);
-
-    uint32_t next = (tx_current + 1) % N_TX_DESCS;
-    tdt->tdt = next;
-    // Dprintf("tdt->tdt %d  tdh->tdh %d",tdt->tdt,tdh->tdh);
-    Dprintf("tx_descs[tx_current] %08x",tx_descs[tx_current].status);
-    while(!(tx_descs[tx_current].status&0xf)){
-        //wait
-    }
-   
-    tx_current = next;
-    return 0;
+static void
+set_receive_address(uint32_t *ra, char *hdaddr, uint32_t rah_flag) {
+	/*
+	 * If hdaddr is AA:BB:CC:DD:EE:FF, each register will
+	 * be set as follows.
+	 *      31           0
+	 *  RAL: |DD|CC|BB|AA|
+	 *  RAH: |flags|FF|EE|
+	 */
+	uint32_t low = 0, high = 0;
+	int i;
+	for (i = 0; i < 4; i++) {
+		low |= hdaddr[i] << (8 * i);
+	}
+	for (i = 4; i < 6; i++) {
+		high |= hdaddr[i] << (8 * i);
+	}
+	ra[0] = low;
+	ra[1] = high | rah_flag;
 }
-int e1000_attachfn(struct pci_func *pcif){
-    pci_func_enable(pcif);
-    e1000 = mmio_map_region((physaddr_t)pcif->reg_base[0],pcif->reg_size[0]);
-    const uint32_t* status = E1000_REG(e1000,E1000_STATUS);
-    assert(*status == 0x80080783);
-    tx_init();
-    rx_init();
-    return 0;
 
+static void
+receive_init() {
+	uint32_t *rdbal;
+	uint32_t *rdbah;
+	struct e1000_rdlen *rdlen;
+	struct e1000_rdh *rdh;
+	e1000_rctl *rctl;
+
+	uint32_t *ra0 = (uint32_t *)E1000REG(reg, E1000_RA0);
+	char hdaddr[6] = {0x52, 0x54, 0x00, 0x12, 0x34, 0x56};
+	set_receive_address(ra0, hdaddr, E1000_RAH_AV);
+
+	struct PageInfo *pp = page_alloc(ALLOC_ZERO);
+	assert(sizeof(struct rx_desc) * NRXDESCS < PGSIZE);
+	rxdscs = page2kva(pp);
+	rdbal = (uint32_t *)E1000REG(reg, E1000_RDBAL);
+	rdbah = (uint32_t *)E1000REG(reg, E1000_RDBAH);
+	*rdbal = page2pa(pp);
+	*rdbah = 0;
+
+	int i;
+	for(i = 0; i < NRXDESCS; i++) {
+		struct PageInfo *tmppg = page_alloc(ALLOC_ZERO);
+		recv_buf_addrs[i] = page2kva(tmppg);
+		rxdscs[i].addr = page2pa(tmppg);
+	}
+
+	rdlen = (struct e1000_rdlen *)E1000REG(reg, E1000_RDLEN);
+	rdlen->len = NRXDESCS;
+	rdh = (struct e1000_rdh *)E1000REG(reg, E1000_RDH);
+	rdh->rdh = 0;
+	rdt = (struct e1000_rdt *)E1000REG(reg, E1000_RDT);
+	rdt->rdt = NRXDESCS - 1;
+
+	rctl = (e1000_rctl *)E1000REG(reg, E1000_RCTL);
+	*rctl = E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_RECRC;
 }
+
+
+int
+e1000_transmit(void *addr, size_t size) {
+	static uint32_t current = 0;
+	txdscs[current].addr = buf_addrs[current];
+	txdscs[current].length = size;
+	txdscs[current].cmd = TX_CMD_EOP | TX_CMD_IDE | TX_CMD_RPS;
+	memcpy(KADDR(buf_addrs[current]), addr, size);
+	uint32_t next = (current + 1) % NTXDESCS;
+	tdt->tdt = next; // NOT a byte offset !!
+	while(!(txdscs[current].status & 0xf))
+		;
+	current = next;
+	return 0;
+}
+
+enum {
+	E_RECEIVE_RETRY = 1,
+};
+
 
 int
 e1000_receive(void *addr, size_t *size) {
+	static uint32_t next = 0;
 	uint8_t errors;
-	if (!(rx_descs[rx_current].status & RX_STATUS_DD)) {
+	if (!(rxdscs[next].status & RX_STATUS_DD)) {
 		return -E_RECEIVE_RETRY;
 	}
-	if (!(rx_descs[rx_current].status & RX_STATUS_EOP)){
+	if (!(rxdscs[next].status & RX_STATUS_EOP)){
 		return -E_RECEIVE_RETRY;
 	}
-	if ((errors = rx_descs[rx_current].errors) != 0){
+	if ((errors = rxdscs[next].errors) != 0){
 		cprintf("receive error: %x\n", errors);
 		return -E_RECEIVE_RETRY;
 	}
-	*size = rx_descs[rx_current].length;
-	memcpy(addr, (void*)rx_buffer[rx_current], *size);
-	rdt->rdt = rx_current;
-	rx_current = (rx_current + 1) % N_RX_DESCS;
+	*size = rxdscs[next].length;
+	memcpy(addr, recv_buf_addrs[next], *size);
+	rdt->rdt = next;
+	next = (next + 1) % NRXDESCS;
 	return 0;
 }
+
+
+int
+e1000_attachfn(struct pci_func *pcif) {
+	pci_func_enable(pcif);
+	reg = mmio_map_region((physaddr_t)pcif->reg_base[0],
+			pcif->reg_size[0]);
+
+	uint32_t *status = (uint32_t *)E1000REG(reg, E1000_STATUS);
+	cprintf("device status: %x\n", *status);
+
+	receive_init();
+	transmit_init();
+	return 0; // What shoud I return?
+}
+
