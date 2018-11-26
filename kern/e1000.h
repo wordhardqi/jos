@@ -31,8 +31,8 @@
 #define E1000_REG(reg,offset) (void *)((char*)reg + offset)
 #define E1000_STATUS    0x008
 
-#define N_TX_DESCS 16
-#define N_RX_DESCS 32
+#define N_TX_DESCS 32
+#define N_RX_DESCS 128
 
 
 struct e1000_reg_cmd{
@@ -77,13 +77,13 @@ struct e1000_reg_tctl {
 	unsigned int rtlc   : 1;
 	unsigned int nrtu   : 1;
 	unsigned int rsv4   : 6;
-};
+} ;
 struct e1000_reg_tipg {
 	unsigned ipgt  : 10;
 	unsigned ipgr1 : 10;
 	unsigned ipgr2 : 10;
 	unsigned rsv   : 2;
-};
+} __attribute__((packed));;
 
 struct tx_desc_t
 {
@@ -104,5 +104,86 @@ struct tx_desc_t
 } __attribute__((packed));
 
 
+
+//rx
+
+// Receive Descriptor Base Address Low
+#define E1000_RDBAL 0x2800
+
+// Receive Descriptor Base Address High
+#define E1000_RDBAH 0x2804
+
+// Receive Descriptor Length
+#define E1000_RDLEN 0x2808
+struct e1000_reg_rdlen {
+	unsigned zero : 7;
+	unsigned len  : 13;
+	unsigned rsv  : 12;
+};
+
+// Reveive Descriptor Head
+#define E1000_RDH 0x02810
+struct e1000_reg_rdh {
+	uint16_t rdh;
+	uint16_t rsv;
+};
+
+// Reveive Descriptor Tail
+#define E1000_RDT 0x02818
+struct  e1000_reg_rdt {
+	uint16_t rdt;
+	uint16_t rsv;
+}__attribute__((__aligned__(32)));
+#define E1000_RA  0x05400  /* Receive Address - RW Array */
+#define E1000_RAH_AV 1<<31
+struct e1000_reg_ral{
+	uint32_t ral;
+}__attribute__((__aligned__(32)));
+struct e1000_reg_rah{
+	uint32_t rah;
+} __attribute__((__aligned__(32)));
+
+#define E1000_RCTL 0x00100
+
+struct e1000_reg_rctl{
+unsigned int rsv: 1;
+unsigned int en: 1;
+unsigned int sbp:1;
+unsigned int upe:1;
+unsigned int mpe:1;
+unsigned int lpe:1;
+unsigned int lbm:2;
+unsigned int rdmts:2;
+unsigned int rsv2:2;
+unsigned int mo: 2;
+unsigned int rsv3:1;
+unsigned int bam : 1;
+unsigned int bsize:2;
+unsigned int vfe:1;
+unsigned int cfien:1;
+unsigned int cfi:1;
+unsigned int rsv4:1;
+unsigned int dpf:1;
+unsigned int pmcf:1;
+unsigned int rsv5:1;
+unsigned int bsex:1;
+unsigned int secrc:1;
+unsigned int rsv6:1;
+
+}__attribute__((__aligned__(32)));
+
+
+struct rx_desc_t {
+	uint64_t addr;
+	uint16_t length;
+	uint16_t chksum;
+	uint8_t status;
+	uint8_t errors;
+	uint16_t special;
+};
+#define RX_STATUS_DD 0x01 // Descriptor Done
+#define RX_STATUS_EOP 1<<1 // End of Packet
+
 int e1000_attachfn(struct pci_func *pcif);
 int  e1000_transmit(uint32_t* ta, size_t len);
+int e1000_receive(void *addr, size_t *size);

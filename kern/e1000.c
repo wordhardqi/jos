@@ -1,32 +1,125 @@
 #include <kern/e1000.h>
 #include <kern/pmap.h>
 #include <inc/string.h>
-
-
+#include <inc/assert.h>
+#include <inc/error.h>
 // __attribute__((__aligned__(16)))
 // struct tx_desc_t tx_descs[N_TX_DESCS];
 
+
+#define E1000_SET_REG(offset,val) *((uint32_t*)(E1000_REG(e1000,offset))) = val
 volatile uint32_t* e1000;
 // volatile struct tx_desc_t* tx_descs;
 __attribute__((__aligned__(16)))
-volatile struct tx_desc_t tx_descs[N_TX_DESCS]  ;
-#define E1000_SET_REG(offset,val) *((uint32_t*)(E1000_REG(e1000,offset))) = val
+volatile struct tx_desc_t* tx_descs ;
 static physaddr_t tx_buffer[N_TX_DESCS];
-static size_t current = 0;
+static size_t tx_current = 0;
 volatile struct e1000_reg_tdlen* tdlen;
 volatile struct e1000_reg_tdh* tdh;
 volatile struct e1000_reg_tdt* tdt;
 volatile struct e1000_reg_tctl* tctl;
 volatile struct e1000_reg_tipg* tipg;
 
+
+volatile struct rx_desc_t* rx_descs;
+static size_t rx_current = 0;
+
+static physaddr_t rx_buffer[N_RX_DESCS];
+volatile struct e1000_reg_rdlen* rdlen;
+volatile struct e1000_reg_rdh* rdh;
+volatile struct e1000_reg_rdt* rdt;
+volatile struct e1000_reg_rctl* rctl;
+
+volatile struct e1000_reg_ral* ral;
+volatile struct e1000_reg_rah* rah;
+
+void set_receive_address(){
+    char hdaddr[6] = {0x52, 0x54, 0x00, 0x12, 0x34, 0x56};
+    
+    int i;
+    uint32_t low = 0,high=0;
+   
+    
+    for (i = 0; i < 4; i++) {
+	    low |= hdaddr[i] << (8 * i);
+	}
+    for (i = 4; i < 6; i++) {
+		high |= hdaddr[i] << (8 * (i-4));
+    }
+    ral =( struct e1000_reg_ral* ) E1000_REG(e1000,E1000_RA);
+    rah =(volatile struct e1000_reg_rah*) (&ral[1]);
+    ral->ral = low;
+    rah->rah = 0x5634 | E1000_RAH_AV;
+   
+    Dprintf("ral = %08x", ral->ral);
+    Dprintf("rah->rah= %08x", rah->rah);
+    Dprintf("rah = %08x", *(uint32_t*)(rah));
+  
+
+}
+
+static int rx_init(){
+    assert(sizeof(struct rx_desc_t) * N_RX_DESCS < PGSIZE);
+    set_receive_address();
+    rx_current = 0;
+
+    struct PageInfo* pp = page_alloc(ALLOC_ZERO);
+    if(!pp) panic("failed to alloc tx_descs");
+    rx_descs = (struct rx_desc_t*)page2kva(pp);
+    E1000_SET_REG(E1000_RDBAL,page2pa(pp));
+    E1000_SET_REG(E1000_RDBAH,0);
+    int i=0;
+    for(i=0;i<N_RX_DESCS;++i){
+        struct PageInfo* pp = page_alloc(ALLOC_ZERO);
+        if(!pp) panic("failed to alloc mem for packets");
+        rx_buffer[i] = page2pa(pp);
+        rx_descs[i].addr = page2pa(pp);
+
+    }
+
+    
+    rdlen = ( struct e1000_reg_rdlen*)(E1000_REG(e1000,E1000_RDLEN));
+    rdlen->len = N_RX_DESCS;
+    rdlen->rsv = 0;
+    rdlen->zero = 0;
+
+    rdh =(struct e1000_reg_rdh*)(E1000_REG(e1000,E1000_RDH));
+    rdh->rdh = 0;
+    rdh->rsv = 0;
+
+    rdt =(struct e1000_reg_rdt*)(E1000_REG(e1000,E1000_RDT));
+    rdt->rdt = (N_RX_DESCS -1);
+    // rdt->rsv = 0;
+ 
+
+
+
+
+    rctl = (struct e1000_reg_rctl*)(E1000_REG(e1000,E1000_RCTL));
+    rctl->bam = 1;
+    rctl->secrc = 1;
+    rctl->en = 1;
+
+
+
+
+    return 0;
+
+
+
+}
+// int e1000_receive(void* addr,size_t size){
+
+// }
+
 // LAB 6: Your driver code here
 //initialize the card to transmit
 static int tx_init(){
     //alloc list of tx_desc_t
-    // struct PageInfo* pp = page_alloc(ALLOC_ZERO);
-    // if(!pp) panic("failed to alloc tx_descs");
+    struct PageInfo* pp = page_alloc(ALLOC_ZERO);
+    if(!pp) panic("failed to alloc tx_descs");
     
-    // tx_descs = (struct tx_desc_t*)page2kva(pp);
+    tx_descs = (struct tx_desc_t*)page2kva(pp);
     E1000_SET_REG(E1000_TDBAL,PADDR((void*)tx_descs));
     E1000_SET_REG(E1000_TDBAH,0);
 
@@ -41,6 +134,8 @@ static int tx_init(){
         // tx_descs[i].status_reg.DD = 1;
 
     }
+
+
 tdlen = ( struct e1000_reg_tdlen*)(E1000_REG(e1000,E1000_TDLEN));
     tdlen->len =N_TX_DESCS;
     Dprintf("tdlen= %d\n",tdlen->len);
@@ -54,6 +149,8 @@ tdh =(struct e1000_reg_tdh*)(E1000_REG(e1000,E1000_TDH));
 tdt = ( struct e1000_reg_tdt*)(E1000_REG(e1000,E1000_TDT));
     tdt->rsv =0;
     tdt->tdt = 0;
+
+    tx_current = 0;
 
 tctl = ( struct e1000_reg_tctl*)(E1000_REG(e1000,E1000_TCTL));
     tctl->en = 1;
@@ -71,27 +168,27 @@ tipg = ( struct e1000_reg_tipg*)(E1000_REG(e1000,E1000_TIPG));
 
 }
 int e1000_transmit(uint32_t* ta, size_t len){
-    // while( !(tx_descs[current].status&0xf) ){
+    // while( !(tx_descs[tx_current].status&0xf) ){
     //     //wait;
     // }
-    tx_descs[current].addr = tx_buffer[current];
-    tx_descs[current].length = len;
+    tx_descs[tx_current].addr = tx_buffer[tx_current];
+    tx_descs[tx_current].length = len;
 
-    tx_descs[current].cmd_reg.RS = 1;
-    tx_descs[current].cmd_reg.IDE = 1;
-    tx_descs[current].cmd_reg.EOP = 1;
-    // Dprintf("tx_descs[current].cmd_reg = %b",tx_descs[current].cmd_reg);
-    memcpy(KADDR(tx_buffer[current]),ta,len);
+    tx_descs[tx_current].cmd_reg.RS = 1;
+    tx_descs[tx_current].cmd_reg.IDE = 1;
+    tx_descs[tx_current].cmd_reg.EOP = 1;
+    // Dprintf("tx_descs[tx_current].cmd_reg = %b",tx_descs[tx_current].cmd_reg);
+    memcpy(KADDR(tx_buffer[tx_current]),ta,len);
 
-    uint32_t next = (current + 1) % N_TX_DESCS;
+    uint32_t next = (tx_current + 1) % N_TX_DESCS;
     tdt->tdt = next;
     // Dprintf("tdt->tdt %d  tdh->tdh %d",tdt->tdt,tdh->tdh);
-    Dprintf("tx_descs[current] %08x",tx_descs[current].status);
-    while(!(tx_descs[current].status&0xf)){
+    Dprintf("tx_descs[tx_current] %08x",tx_descs[tx_current].status);
+    while(!(tx_descs[tx_current].status&0xf)){
         //wait
     }
    
-    current = next;
+    tx_current = next;
     return 0;
 }
 int e1000_attachfn(struct pci_func *pcif){
@@ -100,7 +197,27 @@ int e1000_attachfn(struct pci_func *pcif){
     const uint32_t* status = E1000_REG(e1000,E1000_STATUS);
     assert(*status == 0x80080783);
     tx_init();
+    rx_init();
     return 0;
 
 }
 
+int
+e1000_receive(void *addr, size_t *size) {
+	uint8_t errors;
+	if (!(rx_descs[rx_current].status & RX_STATUS_DD)) {
+		return -E_RECEIVE_RETRY;
+	}
+	if (!(rx_descs[rx_current].status & RX_STATUS_EOP)){
+		return -E_RECEIVE_RETRY;
+	}
+	if ((errors = rx_descs[rx_current].errors) != 0){
+		cprintf("receive error: %x\n", errors);
+		return -E_RECEIVE_RETRY;
+	}
+	*size = rx_descs[rx_current].length;
+	memcpy(addr, (void*)rx_buffer[rx_current], *size);
+	rdt->rdt = rx_current;
+	rx_current = (rx_current + 1) % N_RX_DESCS;
+	return 0;
+}

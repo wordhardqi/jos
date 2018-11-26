@@ -411,6 +411,11 @@ static int
 sys_pkt_tx(void* addr, size_t len ){
 	return e1000_transmit(addr,len);
 }
+static int
+sys_pkt_rx(void *addr, size_t *length)
+{
+	return e1000_receive(addr, length);
+}
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -457,6 +462,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_time_msec();
 		case SYS_pkt_tx:
 			return sys_pkt_tx((void*)a1,a2);
+		case SYS_pkt_rx:
+			return sys_pkt_rx((void *)a1, (void *)a2);	
 	default:
 		return -E_INVAL;
 	}

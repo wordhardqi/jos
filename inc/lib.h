@@ -62,6 +62,7 @@ int	sys_ipc_recv(void *rcv_pg);
 unsigned int sys_time_msec(void);
 
 uint32_t sys_pkt_tx(uint32_t addr, int len );
+int sys_pkt_rx(void *addr, size_t *size);
 
 // This must be inlined.  Exercise for reader: why?
 static inline envid_t __attribute__((always_inline))

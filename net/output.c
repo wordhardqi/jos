@@ -32,5 +32,7 @@ output(envid_t ns_envid)
 		struct jif_pkt *pkt = &(nsipcbuf.pkt);
 		sys_pkt_tx((uint32_t)(pkt->jp_data), pkt->jp_len);
 		sys_page_unmap(0,(void*)(&nsipcbuf));
+		sys_yield();
+
 	}
 }

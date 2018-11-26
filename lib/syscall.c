@@ -125,3 +125,7 @@ uint32_t
 sys_pkt_tx(uint32_t addr, int len ){
 	return (uint32_t) syscall(SYS_pkt_tx,0,addr,len,0,0,0);
 }
+int
+sys_pkt_rx(void *addr, size_t *size){
+	return (int) syscall(SYS_pkt_rx,1,(uint32_t)addr,(uint32_t)size,0,0,0);
+}
